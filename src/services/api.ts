@@ -196,16 +196,16 @@ export const api = {
         const data = await res.json();
         return {
           googleClientId: data.googleClientId || DEFAULT_ID,
-          appUrl: data.appUrl || "https://kaist-content-marketing.ai.studio",
-          officialOrigin: data.officialOrigin || "https://kaist-content-marketing.ai.studio",
+          appUrl: data.appUrl || "https://kaist-ai-story-writer-production.up.railway.app",
+          officialOrigin: data.officialOrigin || "https://kaist-ai-story-writer-production.up.railway.app",
           hasConfiguredClientId: Boolean(data.googleClientId || DEFAULT_ID),
         };
       }
     } catch {}
     return {
       googleClientId: DEFAULT_ID,
-      appUrl: "https://kaist-content-marketing.ai.studio",
-      officialOrigin: "https://kaist-content-marketing.ai.studio",
+      appUrl: "https://kaist-ai-story-writer-production.up.railway.app",
+      officialOrigin: "https://kaist-ai-story-writer-production.up.railway.app",
       hasConfiguredClientId: true,
     };
   },
