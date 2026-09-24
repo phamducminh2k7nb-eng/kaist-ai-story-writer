@@ -153,7 +153,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                     </div>
                     <div className="text-[11px] text-stone-400 mt-0.5">
                       Ngày: <strong>{ev.date}</strong> • Loại:{" "}
-                      {ev.type === "chapter_deadline" ? "Hạn chót chương" : "Đăng bài Marketing"}
+                      {ev.type === "chapter_deadline" ? "Hạn chót chương" : "Lịch đăng chương"}
                     </div>
                   </div>
                 </div>
