@@ -680,8 +680,10 @@ function checkProjectAccess(uid: string, projectId: string): boolean {
 }
 
 // AI Candidate Models for High Availability and Tiered Fallback
-// Current Gemini text fallback tier: stable production models first, preview only as last resort.
+// Current Gemini text fallback tier: newest stable Flash models first; preview Pro only as last resort.
 const FALLBACK_MODEL_TIER = [
+  "gemini-3.8-flash",
+  "gemini-3.7-flash",
   "gemini-3.6-flash",
   "gemini-3.5-flash",
   "gemini-3.5-flash-lite",
@@ -690,11 +692,11 @@ const FALLBACK_MODEL_TIER = [
 
 // Helper: Normalize old/deprecated model names to currently supported Gemini 3 models.
 function normalizeGeminiModel(model?: string): string {
-  if (!model) return "gemini-3.6-flash";
+  if (!model) return "gemini-3.8-flash";
   const m = model.toLowerCase();
   if (m.includes("2.5") || m.includes("2.0") || m.includes("1.5") || m === "gemini-flash-latest") {
     if (m.includes("pro")) return "gemini-3.1-pro-preview";
-    return "gemini-3.6-flash";
+    return "gemini-3.8-flash";
   }
   if (m === "gemini-3.1-flash-lite") return "gemini-3.5-flash-lite";
   return model;
@@ -1402,8 +1404,7 @@ app.post("/api/auth/reset-password", (req, res) => {
 });
 
 // OAuth Client configuration endpoint
-const DEFAULT_GOOGLE_CLIENT_ID = "701735649238-3b738mc5f69nnfd490cd5j7rgbrmilnh.apps.googleusercontent.com";
-const getEffectiveGoogleClientId = () => process.env.GOOGLE_CLIENT_ID || DEFAULT_GOOGLE_CLIENT_ID;
+const getEffectiveGoogleClientId = () => process.env.GOOGLE_CLIENT_ID?.trim() || "";
 
 app.get("/api/auth/config", (req, res) => {
   const googleClientId = getEffectiveGoogleClientId();
@@ -1411,7 +1412,7 @@ app.get("/api/auth/config", (req, res) => {
   res.json({
     googleClientId,
     appUrl: process.env.APP_URL || "https://kaist-ai-story-writer-production.up.railway.app",
-    officialOrigin: "https://kaist-ai-story-writer-production.up.railway.app",
+    officialOrigin: process.env.APP_URL || "https://kaist-ai-story-writer-production.up.railway.app",
     hasConfiguredClientId: Boolean(googleClientId),
   });
 });
@@ -2436,7 +2437,7 @@ app.post("/api/ai/chat", async (req, res) => {
     history,
     attachedDocs,
     workflowDepth = "quick", // 'quick' | 'deep_5step'
-    modelChoice = "gemini-3.6-flash",
+    modelChoice = "gemini-3.8-flash",
     aiProvider = "gemini",
   } = req.body;
   if (!message) {
@@ -2821,7 +2822,7 @@ ${
     });
 
     const targetModel =
-      typeof modelChoice === "string" && modelChoice.startsWith("gemini") ? modelChoice : "gemini-3.6-flash";
+      typeof modelChoice === "string" && modelChoice.startsWith("gemini") ? modelChoice : "gemini-3.8-flash";
 
     const response = await callGeminiWithTimeoutAndRetry(ai, {
       model: targetModel,
@@ -2917,7 +2918,7 @@ ${
       success: true,
       text: parsed.text,
       sources: mergedSources,
-      modelUsed: response._modelUsed || "gemini-3.6-flash",
+      modelUsed: response._modelUsed || "gemini-3.8-flash",
     });
   } catch (error: any) {
     const errorMsg = error?.message || "";
@@ -3525,7 +3526,8 @@ async function generateWithGeminiImage(
   ai: GoogleGenAI,
   prompt: string,
   aspectRatio: string,
-  referenceImage?: { data: Buffer; mimeType: string } | null
+  referenceImage?: { data: Buffer; mimeType: string } | null,
+  model = "gemini-3.1-flash-image"
 ): Promise<GeneratedImageBinary> {
   const contents: any = referenceImage
     ? [
@@ -3540,7 +3542,7 @@ async function generateWithGeminiImage(
     : prompt;
 
   const response: any = await ai.models.generateContent({
-    model: "gemini-3.1-flash-image",
+    model,
     contents,
     config: {
       responseModalities: ["IMAGE"],
@@ -3566,7 +3568,7 @@ async function generateWithGeminiImage(
     buffer,
     mimeType: imagePart.inlineData.mimeType || "image/png",
     provider: "gemini",
-    model: "gemini-3.1-flash-image",
+    model,
   };
 }
 
@@ -3702,7 +3704,7 @@ Return ONLY JSON:
   if (ai) {
     try {
       const refinerRes = await callGeminiWithTimeoutAndRetry(ai, {
-        model: "gemini-3.6-flash",
+        model: "gemini-3.8-flash",
         contents: refinerSystemPrompt,
         config: { responseMimeType: "application/json", temperature: 0.45 },
       });
@@ -3735,12 +3737,18 @@ Return ONLY JSON:
 
     const generated = await enqueueImageJob(async () => {
       if (ai) {
-        try {
-          console.log(`[KAIST Visual Studio] Gemini Image → ${taskId} (${safeAspectRatio}, reference=${Boolean(reference)})`);
-          return await generateWithGeminiImage(ai, englishPrompt, safeAspectRatio, reference);
-        } catch (error: any) {
-          providerErrors.push(`Gemini: ${error?.message || String(error)}`);
-          console.warn("[KAIST Visual Studio] Gemini image failed, checking fallback:", error?.message || error);
+        const imageModels =
+          category === "manga" || category === "cover"
+            ? ["gemini-3-pro-image", "gemini-3.1-flash-image"]
+            : ["gemini-3.1-flash-image", "gemini-3-pro-image"];
+        for (const imageModel of imageModels) {
+          try {
+            console.log(`[KAIST Visual Studio] Gemini Image ${imageModel} → ${taskId} (${safeAspectRatio}, reference=${Boolean(reference)})`);
+            return await generateWithGeminiImage(ai, englishPrompt, safeAspectRatio, reference, imageModel);
+          } catch (error: any) {
+            providerErrors.push(`${imageModel}: ${error?.message || String(error)}`);
+            console.warn(`[KAIST Visual Studio] ${imageModel} failed, checking next image model:`, error?.message || error);
+          }
         }
       } else {
         providerErrors.push("Gemini: GEMINI_API_KEY chưa được cấu hình.");
@@ -3999,45 +4007,69 @@ app.get("/api/ai/providers", (req, res) => {
       status: hasGemini ? "connected" : "not_configured",
       hasKey: hasGemini,
       requiresKey: "GEMINI_API_KEY",
-      currentModel: "gemini-3.6-flash",
+      currentModel: "gemini-3.8-flash",
       availableModels: [
         {
+          id: "gemini-3.8-flash",
+          name: "Gemini 3.8 Flash (Mặc định)",
+          description: "Model text mới nhất cho hội thoại, sáng tác và tác vụ agent tốc độ cao.",
+          bestFor: "Viết truyện, hội thoại, outline, kiểm tra continuity và tác vụ tự động",
+          contextWindow: "1M tokens",
+          status: hasGemini ? "active" : "unconfigured",
+        },
+        {
+          id: "gemini-3.7-flash",
+          name: "Gemini 3.7 Flash",
+          description: "Fallback gần nhất khi 3.8 bận hoặc chạm quota.",
+          bestFor: "Viết truyện dài, phân tích, hội thoại",
+          contextWindow: "1M tokens",
+          status: hasGemini ? "active" : "unconfigured",
+        },
+        {
           id: "gemini-3.6-flash",
-          name: "Gemini 3.6 Flash (Mặc định)",
-          description: "Mô hình thế hệ mới chuẩn tối ưu tốc độ và phản hồi suy luận văn học",
-          bestFor: "Hội thoại, sáng tác nhanh, trích xuất tài liệu",
+          name: "Gemini 3.6 Flash",
+          description: "Fallback ổn định cho các tác vụ sáng tác dài.",
+          bestFor: "Viết chương, tóm tắt, kiểm tra logic",
           contextWindow: "1M tokens",
           status: hasGemini ? "active" : "unconfigured",
         },
         {
           id: "gemini-3.5-flash",
           name: "Gemini 3.5 Flash",
-          description: "Khả năng hiểu văn cảnh đa bước và liên kết cốt truyện chuyên sâu",
-          bestFor: "Sáng tác sâu sắc, dàn ý phức tạp, phản biện",
-          contextWindow: "1M tokens",
-          status: hasGemini ? "active" : "unconfigured",
-        },
-        {
-          id: "gemini-3.1-pro-preview",
-          name: "Gemini 3.1 Pro (Preview)",
-          description: "Chế độ chất lượng cao cho lập kế hoạch, phản biện và xử lý cốt truyện phức tạp",
-          bestFor: "Story Bible, dàn ý dài, kiểm tra logic và biên tập sâu",
+          description: "Fallback đa dụng khi các model mới hơn không khả dụng.",
+          bestFor: "Sáng tác, biên tập và phân tích",
           contextWindow: "1M tokens",
           status: hasGemini ? "active" : "unconfigured",
         },
         {
           id: "gemini-3.5-flash-lite",
           name: "Gemini 3.5 Flash-Lite",
-          description: "Độ trễ thấp cho tác vụ vi mô và kiểm tra lỗi",
-          bestFor: "Gợi ý câu tiếp theo, sửa từ vựng",
+          description: "Độ trễ thấp cho tác vụ vi mô và kiểm tra lỗi.",
+          bestFor: "Gợi ý nhanh, sửa từ vựng, tác vụ nền",
           contextWindow: "1M tokens",
+          status: hasGemini ? "active" : "unconfigured",
+        },
+        {
+          id: "gemini-3.1-pro-preview",
+          name: "Gemini 3.1 Pro (Preview)",
+          description: "Dùng có chọn lọc cho lập kế hoạch và suy luận rất phức tạp.",
+          bestFor: "Story Bible, logic dài, phản biện sâu",
+          contextWindow: "1M tokens",
+          status: hasGemini ? "active" : "unconfigured",
+        },
+        {
+          id: "gemini-3-pro-image",
+          name: "Gemini 3 Pro Image (Nano Banana Pro)",
+          description: "Ưu tiên cho bìa và panel manga cần chất lượng chuyên nghiệp, chỉ dùng khi phù hợp.",
+          bestFor: "Bìa, manga final, nhiều nhân vật, chỉ dẫn hình ảnh phức tạp",
+          contextWindow: "128k tokens",
           status: hasGemini ? "active" : "unconfigured",
         },
         {
           id: "gemini-3.1-flash-image",
           name: "Gemini 3.1 Flash Image (Nano Banana 2)",
-          description: "Mô hình tạo và chỉnh ảnh gốc của Gemini",
-          bestFor: "Bìa truyện, nhân vật, cảnh và panel manga, chỉnh theo ảnh tham chiếu",
+          description: "Model ảnh cân bằng chất lượng, tốc độ và chi phí.",
+          bestFor: "Nhân vật, cảnh, panel nháp, chỉnh ảnh tham chiếu",
           contextWindow: "128k tokens",
           status: hasGemini ? "active" : "unconfigured",
         },
@@ -4196,7 +4228,7 @@ app.get("/api/system/release-info", (req, res) => {
       productionUrl: appUrl,
       status: "healthy",
       subsystems: [
-        { id: "ai_gemini", name: "Gemini AI Engine (Official SDK)", status: process.env.GEMINI_API_KEY ? "ok" : "warning", details: "Mô hình chính: gemini-3.6-flash, gemini-3.5-flash" },
+        { id: "ai_gemini", name: "Gemini AI Engine (Official SDK)", status: process.env.GEMINI_API_KEY ? "ok" : "warning", details: "Mô hình chính: gemini-3.8-flash; ảnh: gemini-3-pro-image / gemini-3.1-flash-image" },
         { id: "visual_studio", name: "Visual Studio & Image Pipeline", status: process.env.GEMINI_API_KEY || process.env.POLLINATIONS_API_KEY ? "ok" : "warning", details: "Gemini 3.1 Flash Image làm chính; Pollinations FLUX fallback; hỗ trợ ảnh tham chiếu thật" },
         { id: "url_safety", name: "Kiểm duyệt & An toàn Liên kết", status: "ok", details: "Chặn cờ bạc, xổ số, lừa đảo; xác thực tên miền" },
         { id: "voice_audio", name: "Bộ thu âm & Micro tiếng Việt", status: "ok", details: "Web Speech API (Mức 1) + MediaRecorder Audio Chunking (Mức 2)" },
@@ -4529,7 +4561,7 @@ async function runStoryAutomation(uid: string, automation: any): Promise<any> {
   const prompt = `Bạn đang chạy KAIST Story Autopilot cho dự án \"${project.title}\".\n${formatInstruction}\n\nMỤC TIÊU VÒNG NÀY:\n- Viết Chương ${nextOrder}, khoảng ${Math.max(600, Math.min(8000, Number(automation.targetWords) || 2200))} từ.\n- Bám tuyệt đối Story Bible, quy tắc thế giới, hồ sơ nhân vật, timeline và các chương trước.\n- Mở đầu có lực hút, giữa chương phải có tiến triển thật, kết chương tạo động lực đọc tiếp nhưng không cliffhanger giả.\n- Tự phát hiện và tránh lặp cảnh, lặp thông tin, OOC, deus ex machina và twist vô căn cứ.\n- Giữ nguyên tính nguyên bản, không bắt chước sát phong cách của tác giả/tác phẩm còn bản quyền.\n\n${projectContext}\n\nHAI CHƯƠNG GẦN NHẤT:\n${previous || "Chưa có chương trước."}\n\nĐỊNH DẠNG TRẢ VỀ:\nDòng đầu: # Chương ${nextOrder}: <tên chương>\nSau đó chỉ viết bản thảo chương hoàn chỉnh. Không thêm lời giải thích ngoài truyện.`;
 
   const response = await callGeminiWithTimeoutAndRetry(ai, {
-    model: "gemini-3.6-flash",
+    model: "gemini-3.8-flash",
     contents: prompt,
     config: {
       temperature: 0.82,
@@ -4568,7 +4600,7 @@ async function runStoryAutomation(uid: string, automation: any): Promise<any> {
     const panelCount = Math.max(4, Math.min(24, Number(automation.mangaPanels) || 8));
     const mangaPrompt = `Chuyển chương sau thành storyboard manga/comic khoảng ${panelCount} panel.\nYêu cầu: chia rõ Trang và Panel; mỗi panel ghi bố cục, góc máy, nhân vật, biểu cảm, hành động, thoại/SFX, continuity trang phục-bối cảnh, và một IMAGE PROMPT tiếng Anh ngắn dùng cho model tạo ảnh. Không nhồi quá nhiều thoại.\n\nTRUYỆN: ${project.title}\nCHƯƠNG: ${parsed.title}\n\n${parsed.content.slice(0, 16000)}`;
     const mangaRes = await callGeminiWithTimeoutAndRetry(ai, {
-      model: "gemini-3.6-flash",
+      model: "gemini-3.8-flash",
       contents: mangaPrompt,
       config: { temperature: 0.7 },
     }, 45000);
