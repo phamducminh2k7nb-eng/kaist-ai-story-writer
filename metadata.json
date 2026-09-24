@@ -1,0 +1,10 @@
+{
+  "name": "KAIST Story - Trợ lý AI Viết Truyện & Xuất Bản",
+  "description": "Không gian AI tập trung cho viết truyện dài, quản lý nhân vật, thế giới, dàn ý, minh họa và chuẩn bị xuất bản.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
