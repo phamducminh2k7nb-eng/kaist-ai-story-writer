@@ -187,7 +187,6 @@ export const api = {
   },
 
   async getAuthConfig(): Promise<{ googleClientId: string; appUrl: string; officialOrigin?: string; hasConfiguredClientId: boolean }> {
-    const DEFAULT_ID = "701735649238-3b738mc5f69nnfd490cd5j7rgbrmilnh.apps.googleusercontent.com";
     try {
       const res = await fetch("/api/auth/config", {
         headers: { "Cache-Control": "no-cache" },
@@ -195,18 +194,18 @@ export const api = {
       if (res.ok) {
         const data = await res.json();
         return {
-          googleClientId: data.googleClientId || DEFAULT_ID,
+          googleClientId: data.googleClientId || "",
           appUrl: data.appUrl || "https://kaist-ai-story-writer-production.up.railway.app",
           officialOrigin: data.officialOrigin || "https://kaist-ai-story-writer-production.up.railway.app",
-          hasConfiguredClientId: Boolean(data.googleClientId || DEFAULT_ID),
+          hasConfiguredClientId: Boolean(data.googleClientId),
         };
       }
     } catch {}
     return {
-      googleClientId: DEFAULT_ID,
+      googleClientId: "",
       appUrl: "https://kaist-ai-story-writer-production.up.railway.app",
       officialOrigin: "https://kaist-ai-story-writer-production.up.railway.app",
-      hasConfiguredClientId: true,
+      hasConfiguredClientId: false,
     };
   },
 
