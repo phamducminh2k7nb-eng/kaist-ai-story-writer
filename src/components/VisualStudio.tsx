@@ -997,7 +997,8 @@ export const VisualStudio: React.FC<VisualStudioProps> = ({
               <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p className="font-semibold">{errorMessage}</p>
-                <button                  onClick={() => {
+                <button
+                  onClick={() => {
                     setErrorMessage(null);
                     if (activeTab === "ai_create") handleGenerateAI();
                     else if (activeTab === "find_existing") handleSearchImages();

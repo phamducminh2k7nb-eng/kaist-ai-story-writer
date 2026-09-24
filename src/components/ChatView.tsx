@@ -997,6 +997,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               </button>
             </div>
           </div>
+
           {showAdvanced && (
             <div className="mt-2 pt-2 border-t border-zinc-100 dark:border-zinc-800 flex items-center gap-2 flex-wrap">
               <select value={contextScope} onChange={(e) => setContextScope(e.target.value as any)} className="bg-white dark:bg-[#16161a] border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-1 text-xs">

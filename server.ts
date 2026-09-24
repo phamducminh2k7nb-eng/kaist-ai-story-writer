@@ -997,6 +997,7 @@ async function verifyWebUrl(url: string, claimedTitle?: string): Promise<UrlVeri
     if (parsed.pathname.length > 3 && finalParsed.pathname === "/" && !finalUrl.includes(parsed.pathname)) {
       return { valid: false, reason: `Đường dẫn bài viết bị chuyển hướng bất thường về trang chủ (${finalUrl})` };
     }
+
     const html = await res.text();
     const titleMatch = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(html);
     const pageTitle = titleMatch ? titleMatch[1].replace(/\s+/g, " ").trim() : "";
@@ -1996,7 +1997,8 @@ app.post("/api/marketing/brands", (req, res) => {
     ...req.body,
   };
   if (!db.marketingBrands[uid]) db.marketingBrands[uid] = [];
-  db.marketingBrands[uid].push(newBrand);  saveDbToDisk();
+  db.marketingBrands[uid].push(newBrand);
+  saveDbToDisk();
   res.json({ success: true, brand: newBrand });
 });
 
@@ -2995,7 +2997,8 @@ ${
       } catch {}
     }
 
-    // If research query was asked and no external web source was returned, supply authoritative scholarly sources    if (isResearchQuery && !parsed.additionalSources.some((s) => s.sourceType === "web")) {
+    // If research query was asked and no external web source was returned, supply authoritative scholarly sources
+    if (isResearchQuery && !parsed.additionalSources.some((s) => s.sourceType === "web")) {
       parsed.additionalSources.push(
         {
           sourceType: "web",
@@ -3994,7 +3997,8 @@ Return ONLY JSON:
     const newImageItem: any = {
       id: "img_" + Math.random().toString(36).substring(2, 9),
       userId: uid,
-      taskId,      projectId: projectId || undefined,
+      taskId,
+      projectId: projectId || undefined,
       originalConcept: concept,
       prompt: englishPrompt,
       refinedPrompt: englishPrompt,
@@ -4993,7 +4997,8 @@ app.put("/api/publication-queue/:id", (req, res) => {
   if (!item) return res.status(404).json({ error: "Không tìm thấy mục xuất bản" });
   if (req.body.status && ["waiting_review", "queued", "published", "failed"].includes(req.body.status)) item.status = req.body.status;
   if (req.body.scheduledAt) item.scheduledAt = req.body.scheduledAt;
-  item.updatedAt = new Date().toISOString();  saveDbToDisk();
+  item.updatedAt = new Date().toISOString();
+  saveDbToDisk();
   res.json({ success: true, item });
 });
 
