@@ -1981,77 +1981,8 @@ app.delete("/api/projects/:projectId/memories/:memId", (req, res) => {
   res.json({ success: true, message: "Đã xóa trí nhớ dự án" });
 });
 
-// Content Marketing Studio
-app.get("/api/marketing/brands", (req, res) => {
-  const uid = getUserId(req);
-  const brands = db.marketingBrands[uid] || [];
-  res.json({ success: true, brands });
-});
-
-app.post("/api/marketing/brands", (req, res) => {
-  const uid = getUserId(req);
-  const newBrand = {
-    id: "brand_" + Math.random().toString(36).substring(2, 9),
-    userId: uid,
-    products: req.body.products || [],
-    ...req.body,
-  };
-  if (!db.marketingBrands[uid]) db.marketingBrands[uid] = [];
-  db.marketingBrands[uid].push(newBrand);
-  saveDbToDisk();
-  res.json({ success: true, brand: newBrand });
-});
-
-app.delete("/api/marketing/brands/:id", (req, res) => {
-  const uid = getUserId(req);
-  const brands = db.marketingBrands[uid] || [];
-  db.marketingBrands[uid] = brands.filter((b: any) => b.id !== req.params.id);
-  saveDbToDisk();
-  res.json({ success: true, message: "Đã xóa hồ sơ thương hiệu thành công" });
-});
-
-app.get("/api/marketing/content", (req, res) => {
-  const uid = getUserId(req);
-  const content = db.marketingContent[uid] || [];
-  res.json({ success: true, content });
-});
-
-app.post("/api/marketing/content", (req, res) => {
-  const uid = getUserId(req);
-  const item = {
-    id: "mkt_" + Math.random().toString(36).substring(2, 9),
-    userId: uid,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    variations: req.body.variations || [],
-    status: req.body.status || "drafting",
-    ...req.body,
-  };
-  if (!db.marketingContent[uid]) db.marketingContent[uid] = [];
-  db.marketingContent[uid].unshift(item);
-  saveDbToDisk();
-  res.json({ success: true, content: item });
-});
-
-app.put("/api/marketing/content/:id", (req, res) => {
-  const uid = getUserId(req);
-  const list = db.marketingContent[uid] || [];
-  const idx = list.findIndex((c: any) => c.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ error: "Không tìm thấy bài viết" });
-  list[idx] = { ...list[idx], ...req.body, updatedAt: new Date().toISOString() };
-  saveDbToDisk();
-  res.json({ success: true, content: list[idx] });
-});
-
-app.delete("/api/marketing/content/:id", (req, res) => {
-  const uid = getUserId(req);
-  const list = db.marketingContent[uid] || [];
-  db.marketingContent[uid] = list.filter((c: any) => c.id !== req.params.id);
-  saveDbToDisk();
-  res.json({ success: true, message: "Đã xóa bài viết marketing thành công" });
-});
-
 // Library & Documents
+
 app.get("/api/documents", (req, res) => {
   const uid = getUserId(req);
   const docs = db.documents[uid] || [];
@@ -3395,96 +3326,8 @@ app.post("/api/ai/verify-url", async (req, res) => {
   res.json({ success: true, ...result });
 });
 
-// 5. Marketing Content Studio AI Generator
-app.post("/api/ai/marketing-generate", async (req, res) => {
-  const { brandId, productInfo, format, platform, goal, targetAudience, extraPrompt } = req.body;
-  const uid = getUserId(req);
-  const brand = (db.marketingBrands[uid] || []).find((b: any) => b.id === brandId);
-  const ai = getGeminiClient();
+// Visual Studio / Image Prompt & Generation
 
-  const brandContext = brand ? `
-THƯƠNG HIỆU: ${brand.brandName} (${brand.industry})
-Lời hứa thương hiệu: ${brand.brandPromise}
-Giọng điệu (Tone of Voice): ${brand.toneOfVoice}
-Từ ngữ ưu tiên: ${brand.preferredKeywords?.join(", ") || "Chất lượng, Uy tín"}
-TỪ NGỮ CẤM DÙNG: ${brand.forbiddenWords?.join(", ") || "Rẻ nhất, Chữa dứt điểm"}
-` : "";
-
-  const prompt = `Bạn là Giám đốc Sáng tạo Nội dung của KAIST Content Studio.
-Hãy tạo nội dung marketing chất lượng cao:
-- Định dạng: ${format} (${platform})
-- Mục tiêu: ${goal}
-- Khách hàng mục tiêu: ${targetAudience}
-- Thông tin sản phẩm/dịch vụ: ${productInfo || "Sản phẩm chiến lược"}
-- Yêu cầu bổ sung: ${extraPrompt || "Tạo nội dung thu hút, chạm cảm xúc và có tính chuyển đổi cao."}
-${brandContext}
-
-QUY TẮC BẮT BUỘC:
-- TUYỆT ĐỐI KHÔNG tự bịa số liệu bán hàng, chứng nhận giả hoặc cam kết sai sự thật.
-- Hook mở đầu phải gây tò mò, hợp tự nhiên với nền tảng ${platform}.
-- Đưa ra 2 phương án biến thể (angle) khác nhau để thử nghiệm A/B.
-- Kèm lời kêu gọi hành động (CTA) sắc sảo, tự nhiên.
-
-Trả về định dạng JSON:
-{
-  "title": "Tiêu đề nội dung",
-  "hook": "Câu mở đầu thu hút sự chú ý trong 3 giây đầu",
-  "body": "Toàn bộ thân bài chi tiết, ngắt đoạn dễ đọc",
-  "callToAction": "Lời kêu gọi hành động",
-  "hashtags": ["#tag1", "#tag2"],
-  "variations": [
-    { "angle": "Góc tiếp cận 1 (ví dụ: Nỗi đau khách hàng)", "hook": "Câu mở đầu biến thể 1", "body": "Nội dung vắn tắt biến thể 1" },
-    { "angle": "Góc tiếp cận 2 (ví dụ: Câu chuyện hậu trường)", "hook": "Câu mở đầu biến thể 2", "body": "Nội dung vắn tắt biến thể 2" }
-  ]
-}`;
-
-  if (!ai) {
-    return res.json({
-      success: true,
-      content: {
-        title: `Bài viết ${platform}: ${goal}`,
-        hook: "Có một sự thật mà ít ai nói cho bạn biết về cách người ta lựa chọn...",
-        body: `Nội dung marketing mẫu được tối ưu theo phong cách thương hiệu ${brand?.brandName || "của bạn"}.\n\nĐầu tư vào giá trị thực luôn mang lại sự bền vững dài lâu.`,
-        callToAction: "Bình luận ngay bên dưới hoặc gửi tin nhắn để nhận ưu đãi đặc quyền.",
-        hashtags: ["#Marketing", "#KAIST", `#${platform}`],
-        variations: [
-          { angle: "Cảm xúc & Giá trị", hook: "Bạn có nhớ lần cuối cùng...", body: "Nội dung biến thể cảm xúc..." }
-        ]
-      }
-    });
-  }
-
-  try {
-    const response = await callGeminiWithTimeoutAndRetry(ai, {
-      model: "gemini-3.5-flash-lite",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        temperature: 0.7,
-      },
-    });
-
-    const parsed = JSON.parse(response.text || "{}");
-    res.json({ success: true, content: parsed });
-  } catch (error: any) {
-    console.log("[KAIST AI Notice] Marketing Generate fallback:", error?.message || error);
-    res.json({
-      success: true,
-      content: {
-        title: `Chiến dịch ${platform}: ${goal}`,
-        hook: "Có một sự thật tạo nên sự khác biệt thực sự trong câu chuyện thương hiệu...",
-        body: `Nội dung tối ưu cho đối tượng: ${targetAudience}. Dựa trên sản phẩm: ${productInfo || "Chiến lược"}.\n\nĐem đến giá trị bền vững và trải nghiệm đích thực cho khách hàng.`,
-        callToAction: "Bình luận hoặc nhắn tin ngay để nhận thông tin chi tiết.",
-        hashtags: ["#Marketing", "#KAIST", `#${platform}`],
-        variations: [
-          { angle: "Cảm xúc & Niềm tin", hook: "Giá trị chân thực luôn có tiếng nói riêng...", body: "Phương án truyền cảm hứng và niềm tin thương hiệu." }
-        ]
-      }
-    });
-  }
-});
-
-// 6. Visual Studio / Image Prompt & Generation
 app.post("/api/ai/image-prompt", async (req, res) => {
   const { concept, category, style, aspectRatio, projectId } = req.body;
   const ai = getGeminiClient();
