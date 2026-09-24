@@ -233,47 +233,6 @@ export interface AutomationRunResult {
   message: string;
 }
 
-export interface BrandProfile {
-  id: string;
-  userId: string;
-  brandName: string;
-  industry: string;
-  brandPromise: string;
-  targetAudience: string;
-  toneOfVoice: string;
-  preferredKeywords: string[];
-  forbiddenWords: string[];
-  approvedSamples: string[];
-  products: {
-    id: string;
-    name: string;
-    description: string;
-    benefits: string[];
-    price?: string;
-    proofPoints?: string;
-  }[];
-}
-
-export interface MarketingContentItem {
-  id: string;
-  userId: string;
-  brandId?: string;
-  title: string;
-  format: 'social_post' | 'video_script' | 'seo_blog' | 'landing_page' | 'email' | 'livestream';
-  platform: 'facebook' | 'tiktok' | 'youtube' | 'linkedin' | 'instagram' | 'email' | 'web';
-  targetAudience: string;
-  goal: string;
-  hook: string;
-  body: string;
-  callToAction: string;
-  variations: { angle: string; hook: string; body: string }[];
-  hashtags?: string[];
-  status: 'idea' | 'drafting' | 'review' | 'ready' | 'published';
-  scheduledDate?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
 export interface DocumentItem {
   id: string;
   userId: string;
