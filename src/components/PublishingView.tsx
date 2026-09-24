@@ -62,7 +62,7 @@ export const PublishingView: React.FC<PublishingViewProps> = ({ activeProject, c
   return (
     <div className="flex-1 overflow-y-auto p-4 sm:p-6 max-w-6xl mx-auto w-full">
       <div className="flex items-start justify-between gap-4 mb-5">
-        <div><div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Publishing Agent</div><h1 className="text-xl font-extrabold text-zinc-900 dark:text-white mt-1">Xuất bản & kiếm tiền từ truyện</h1><p className="text-sm text-zinc-500 mt-1">KAIST chuẩn bị bản thảo, metadata và lịch đăng. Autopilot có thể tự đẩy chương sang website/CMS của bạn qua Publisher Webhook; các nền tảng ngoài cần API/OAuth hợp lệ.</p></div>
+        <div><div className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Publishing Agent</div><h1 className="text-xl font-extrabold text-zinc-900 dark:text-white mt-1">Tự đăng & hỗ trợ kiếm tiền từ truyện</h1><p className="text-sm text-zinc-500 mt-1">KAIST tự chuẩn bị bản thảo, metadata, lịch đăng và hàng đợi xuất bản. Khi có connector/API hợp lệ, Autopilot có thể tự gửi chương sang nền tảng đích; doanh thu vẫn phụ thuộc nền tảng, nội dung và người đọc.</p></div>
         <Send className="w-6 h-6 text-indigo-500 shrink-0" />
       </div>
 
