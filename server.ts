@@ -635,8 +635,8 @@ function loadDbFromDisk(): void {
     if (!fs.existsSync(IMAGES_DIR)) fs.mkdirSync(IMAGES_DIR, { recursive: true });
     if (!fs.existsSync(DOCS_DIR)) fs.mkdirSync(DOCS_DIR, { recursive: true });
     if (fs.existsSync(DATA_FILE)) {
-      const raw = fs.readFileSync(DATA_FILE, "utf-8");
-      const parsed = JSON.parse(raw);
+      const raw = fs.readFileSync(DATA_FILE, "utf-8").trim();
+      const parsed = raw ? JSON.parse(raw) : {};
       // Merge keys from parsed into db
       Object.keys(parsed).forEach((key) => {
         if (parsed[key] && typeof parsed[key] === "object") {
@@ -645,6 +645,7 @@ function loadDbFromDisk(): void {
       });
       // Security: Revoke all unverified/stale sessions on server boot
       db.sessions = {};
+      if (!raw) saveDbToDisk();
       console.log("Loaded KAIST persistent database from disk successfully.");
     } else {
       db.sessions = {};
@@ -747,10 +748,9 @@ function checkProjectAccess(uid: string, projectId: string): boolean {
 }
 
 // AI Candidate Models for High Availability and Tiered Fallback
-// Current Gemini text fallback tier: 3.8 → 3.7 → 3.5 → 3.5 Flash-Lite.
+// Current Gemini text fallback tier: stable production models first, preview only as last resort.
 const FALLBACK_MODEL_TIER = [
-  "gemini-3.8-flash",
-  "gemini-3.7-flash",
+  "gemini-3.6-flash",
   "gemini-3.5-flash",
   "gemini-3.5-flash-lite",
   "gemini-3.1-pro-preview",
@@ -758,11 +758,11 @@ const FALLBACK_MODEL_TIER = [
 
 // Helper: Normalize old/deprecated model names to currently supported Gemini 3 models.
 function normalizeGeminiModel(model?: string): string {
-  if (!model) return "gemini-3.8-flash";
+  if (!model) return "gemini-3.6-flash";
   const m = model.toLowerCase();
   if (m.includes("2.5") || m.includes("2.0") || m.includes("1.5") || m === "gemini-flash-latest") {
     if (m.includes("pro")) return "gemini-3.1-pro-preview";
-    return "gemini-3.8-flash";
+    return "gemini-3.6-flash";
   }
   if (m === "gemini-3.1-flash-lite") return "gemini-3.5-flash-lite";
   return model;
@@ -1480,8 +1480,8 @@ app.get("/api/auth/config", (req, res) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
   res.json({
     googleClientId,
-    appUrl: process.env.APP_URL || "https://kaist-content-marketing.ai.studio",
-    officialOrigin: "https://kaist-content-marketing.ai.studio",
+    appUrl: process.env.APP_URL || "https://kaist-ai-story-writer-production.up.railway.app",
+    officialOrigin: "https://kaist-ai-story-writer-production.up.railway.app",
     hasConfiguredClientId: Boolean(googleClientId),
   });
 });
@@ -2579,7 +2579,7 @@ app.post("/api/ai/chat", async (req, res) => {
     history,
     attachedDocs,
     workflowDepth = "quick", // 'quick' | 'deep_5step'
-    modelChoice = "gemini-3.8-flash",
+    modelChoice = "gemini-3.6-flash",
     aiProvider = "gemini",
   } = req.body;
   if (!message) {
@@ -2964,7 +2964,7 @@ ${
     });
 
     const targetModel =
-      typeof modelChoice === "string" && modelChoice.startsWith("gemini") ? modelChoice : "gemini-3.8-flash";
+      typeof modelChoice === "string" && modelChoice.startsWith("gemini") ? modelChoice : "gemini-3.6-flash";
 
     const response = await callGeminiWithTimeoutAndRetry(ai, {
       model: targetModel,
@@ -3060,7 +3060,7 @@ ${
       success: true,
       text: parsed.text,
       sources: mergedSources,
-      modelUsed: response._modelUsed || "gemini-3.8-flash",
+      modelUsed: response._modelUsed || "gemini-3.6-flash",
     });
   } catch (error: any) {
     const errorMsg = error?.message || "";
@@ -3313,7 +3313,7 @@ app.post("/api/ai/controlled-research", async (req, res) => {
   }
 
   const prompt = `Thực hiện nghiên cứu kiến thức chuyên sâu và rút ra dữ kiện kiểm chứng cho chủ đề: "${query}".
-Phục vụ cho dự án văn học / content marketing: ${currentProjectSummary || "Kỳ ảo cổ phong / Lịch sử"}.
+Phục vụ cho dự án văn học, truyện dài hoặc manga: ${currentProjectSummary || "Kỳ ảo cổ phong / Lịch sử"}.
 
 Yêu cầu quy trình TỰ HỌC CÓ KIỂM SOÁT của KAIST:
 1. Trích xuất 2 - 4 sự thật/dữ kiện cốt lõi có căn cứ thực tế hoặc nguyên lý khoa học/lịch sử.
@@ -3933,7 +3933,7 @@ Return ONLY JSON:
   if (ai) {
     try {
       const refinerRes = await callGeminiWithTimeoutAndRetry(ai, {
-        model: "gemini-3.8-flash",
+        model: "gemini-3.6-flash",
         contents: refinerSystemPrompt,
         config: { responseMimeType: "application/json", temperature: 0.45 },
       });
@@ -4230,11 +4230,11 @@ app.get("/api/ai/providers", (req, res) => {
       status: hasGemini ? "connected" : "not_configured",
       hasKey: hasGemini,
       requiresKey: "GEMINI_API_KEY",
-      currentModel: "gemini-3.8-flash",
+      currentModel: "gemini-3.6-flash",
       availableModels: [
         {
-          id: "gemini-3.8-flash",
-          name: "Gemini 3.8 Flash (Mặc định)",
+          id: "gemini-3.6-flash",
+          name: "Gemini 3.6 Flash (Mặc định)",
           description: "Mô hình thế hệ mới chuẩn tối ưu tốc độ và phản hồi suy luận văn học",
           bestFor: "Hội thoại, sáng tác nhanh, trích xuất tài liệu",
           contextWindow: "1M tokens",
@@ -4249,10 +4249,10 @@ app.get("/api/ai/providers", (req, res) => {
           status: hasGemini ? "active" : "unconfigured",
         },
         {
-          id: "gemini-3.7-flash",
-          name: "Gemini 3.7 Flash",
-          description: "Fallback mạnh, ổn định cho hội thoại và sáng tác dài",
-          bestFor: "Viết truyện, phân tích, hội thoại dài",
+          id: "gemini-3.1-pro-preview",
+          name: "Gemini 3.1 Pro (Preview)",
+          description: "Chế độ chất lượng cao cho lập kế hoạch, phản biện và xử lý cốt truyện phức tạp",
+          bestFor: "Story Bible, dàn ý dài, kiểm tra logic và biên tập sâu",
           contextWindow: "1M tokens",
           status: hasGemini ? "active" : "unconfigured",
         },
@@ -4268,7 +4268,7 @@ app.get("/api/ai/providers", (req, res) => {
           id: "gemini-3.1-flash-image",
           name: "Gemini 3.1 Flash Image (Nano Banana 2)",
           description: "Mô hình tạo và chỉnh ảnh gốc của Gemini",
-          bestFor: "Bìa truyện, nhân vật, cảnh, ảnh marketing, chỉnh theo ảnh tham chiếu",
+          bestFor: "Bìa truyện, nhân vật, cảnh và panel manga, chỉnh theo ảnh tham chiếu",
           contextWindow: "128k tokens",
           status: hasGemini ? "active" : "unconfigured",
         },
@@ -4427,7 +4427,7 @@ app.get("/api/system/release-info", (req, res) => {
       productionUrl: appUrl,
       status: "healthy",
       subsystems: [
-        { id: "ai_gemini", name: "Gemini AI Engine (Official SDK)", status: process.env.GEMINI_API_KEY ? "ok" : "warning", details: "Mô hình chính: gemini-3.8-flash, gemini-3.5-flash" },
+        { id: "ai_gemini", name: "Gemini AI Engine (Official SDK)", status: process.env.GEMINI_API_KEY ? "ok" : "warning", details: "Mô hình chính: gemini-3.6-flash, gemini-3.5-flash" },
         { id: "visual_studio", name: "Visual Studio & Image Pipeline", status: process.env.GEMINI_API_KEY || process.env.POLLINATIONS_API_KEY ? "ok" : "warning", details: "Gemini 3.1 Flash Image làm chính; Pollinations FLUX fallback; hỗ trợ ảnh tham chiếu thật" },
         { id: "url_safety", name: "Kiểm duyệt & An toàn Liên kết", status: "ok", details: "Chặn cờ bạc, xổ số, lừa đảo; xác thực tên miền" },
         { id: "voice_audio", name: "Bộ thu âm & Micro tiếng Việt", status: "ok", details: "Web Speech API (Mức 1) + MediaRecorder Audio Chunking (Mức 2)" },
@@ -4687,7 +4687,7 @@ app.post("/api/ai/translate", async (req, res) => {
 
   const prompt = `Dịch đoạn văn sau sang ${targetLanguage || "English"}.
 YÊU CẦU:
-1. Dịch chuẩn văn phong tự nhiên, giữ trọn nhịp điệu cảm xúc văn học hoặc marketing.
+1. Dịch chuẩn văn phong tự nhiên, giữ trọn nhịp điệu cảm xúc văn học, hội thoại và kịch bản manga.
 2. BẢO LƯU CHÍNH XÁC tên riêng của nhân vật, địa danh và các thuật ngữ trong bảng thuật ngữ sau:
 ${glossaryContext}
 
@@ -4760,7 +4760,7 @@ async function runStoryAutomation(uid: string, automation: any): Promise<any> {
   const prompt = `Bạn đang chạy KAIST Story Autopilot cho dự án \"${project.title}\".\n${formatInstruction}\n\nMỤC TIÊU VÒNG NÀY:\n- Viết Chương ${nextOrder}, khoảng ${Math.max(600, Math.min(8000, Number(automation.targetWords) || 2200))} từ.\n- Bám tuyệt đối Story Bible, quy tắc thế giới, hồ sơ nhân vật, timeline và các chương trước.\n- Mở đầu có lực hút, giữa chương phải có tiến triển thật, kết chương tạo động lực đọc tiếp nhưng không cliffhanger giả.\n- Tự phát hiện và tránh lặp cảnh, lặp thông tin, OOC, deus ex machina và twist vô căn cứ.\n- Giữ nguyên tính nguyên bản, không bắt chước sát phong cách của tác giả/tác phẩm còn bản quyền.\n\n${projectContext}\n\nHAI CHƯƠNG GẦN NHẤT:\n${previous || "Chưa có chương trước."}\n\nĐỊNH DẠNG TRẢ VỀ:\nDòng đầu: # Chương ${nextOrder}: <tên chương>\nSau đó chỉ viết bản thảo chương hoàn chỉnh. Không thêm lời giải thích ngoài truyện.`;
 
   const response = await callGeminiWithTimeoutAndRetry(ai, {
-    model: "gemini-3.8-flash",
+    model: "gemini-3.6-flash",
     contents: prompt,
     config: {
       temperature: 0.82,
@@ -4799,7 +4799,7 @@ async function runStoryAutomation(uid: string, automation: any): Promise<any> {
     const panelCount = Math.max(4, Math.min(24, Number(automation.mangaPanels) || 8));
     const mangaPrompt = `Chuyển chương sau thành storyboard manga/comic khoảng ${panelCount} panel.\nYêu cầu: chia rõ Trang và Panel; mỗi panel ghi bố cục, góc máy, nhân vật, biểu cảm, hành động, thoại/SFX, continuity trang phục-bối cảnh, và một IMAGE PROMPT tiếng Anh ngắn dùng cho model tạo ảnh. Không nhồi quá nhiều thoại.\n\nTRUYỆN: ${project.title}\nCHƯƠNG: ${parsed.title}\n\n${parsed.content.slice(0, 16000)}`;
     const mangaRes = await callGeminiWithTimeoutAndRetry(ai, {
-      model: "gemini-3.8-flash",
+      model: "gemini-3.6-flash",
       contents: mangaPrompt,
       config: { temperature: 0.7 },
     }, 45000);
