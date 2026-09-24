@@ -680,14 +680,15 @@ function checkProjectAccess(uid: string, projectId: string): boolean {
 }
 
 // AI Candidate Models for High Availability and Tiered Fallback
-// Current Gemini text fallback tier: newest stable Flash models first; preview Pro only as last resort.
+// Prefer stable Flash first, then high-volume Flash-Lite models before older Flash fallbacks.
+// Avoid Pro Preview as a generic fallback because preview quotas are typically more restrictive.
 const FALLBACK_MODEL_TIER = [
   "gemini-3.8-flash",
+  "gemini-3.1-flash-lite",
+  "gemini-3.5-flash-lite",
   "gemini-3.7-flash",
   "gemini-3.6-flash",
   "gemini-3.5-flash",
-  "gemini-3.5-flash-lite",
-  "gemini-3.1-pro-preview",
 ];
 
 // Helper: Normalize old/deprecated model names to currently supported Gemini 3 models.
@@ -698,7 +699,7 @@ function normalizeGeminiModel(model?: string): string {
     if (m.includes("pro")) return "gemini-3.1-pro-preview";
     return "gemini-3.8-flash";
   }
-  if (m === "gemini-3.1-flash-lite") return "gemini-3.5-flash-lite";
+  // gemini-3.1-flash-lite is a current stable high-volume model; keep it as-is.
   return model;
 }
 
@@ -748,7 +749,7 @@ async function callGeminiWithTimeoutAndRetry(
       console.log(`[KAIST AI Engine] Đang gọi mô hình: ${currentModel} (Mô hình ${attempt}/${modelTier.length})`);
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(
-          () => reject(new Error("AI_TIMEOUT: Thời gian chờ phản hồi từ AI đã quá hạn (25s).")),
+          () => reject(new Error(`AI_TIMEOUT: Thời gian chờ phản hồi từ AI đã quá hạn (${Math.round(timeoutMs / 1000)}s).`)),
           timeoutMs
         );
       });
@@ -2832,7 +2833,7 @@ ${
         temperature: mode === "serial" ? 0.82 : mode === "manga" ? 0.76 : mode === "write" ? 0.78 : mode === "critique" ? 0.4 : 0.7,
         tools: wantsLiveWeb ? [{ googleSearch: {} }] : undefined,
       },
-    });
+    }, 45000);
 
     const parsed = await extractSources(response.text || "KAIST đã xử lý xong yêu cầu của bạn.");
 
