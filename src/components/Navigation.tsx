@@ -55,11 +55,11 @@ export const Navigation: React.FC<NavigationProps> = ({
   onLogout,
 }) => {
   const navItems = [
-    { id: "chat", label: "Phòng tác giả AI", icon: MessageSquareText },
-    { id: "story", label: "Story Studio", icon: BookOpen },
+    { id: "chat", label: "AI Tác giả", icon: MessageSquareText },
+    { id: "story", label: "Viết truyện", icon: BookOpen },
     { id: "visual", label: "Manga Studio", icon: PanelsTopLeft },
-    { id: "automation", label: "Autopilot", icon: Bot },
-    { id: "publish", label: "Xuất bản", icon: Send },
+    { id: "automation", label: "Tự động hóa", icon: Bot },
+    { id: "publish", label: "Tự đăng", icon: Send },
   ] as const;
 
   const handleItemClick = (id: NavView) => {
