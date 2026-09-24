@@ -2978,7 +2978,7 @@ ${
       noticeText = "Thời gian phản hồi từ dịch vụ AI vượt quá 25 giây (AI_TIMEOUT). Vui lòng thử lại với câu hỏi ngắn hơn hoặc kiểm tra đường truyền.";
     } else if (isAuthError) {
       errorCode = "AUTH_ERROR";
-      noticeText = "Khóa API Google AI Studio chưa được cấu hình quyền hoặc không hợp lệ (HTTP 401/403). Vui lòng kiểm tra thiết lập khóa trong Cài đặt.";
+      noticeText = "GEMINI_API_KEY không hợp lệ hoặc chưa đủ quyền (HTTP 401/403). Với key cũ, hãy tạo Auth API Key mới trong Google AI Studio rồi cập nhật secret GEMINI_API_KEY trên Railway.";
     } else {
       errorCode = "NETWORK_OR_SERVER_ERROR";
       noticeText = "Không thể hoàn tất kết nối với dịch vụ AI. Vui lòng kiểm tra đường truyền mạng và bấm thử lại.";
@@ -3738,9 +3738,9 @@ Return ONLY JSON:
     const generated = await enqueueImageJob(async () => {
       if (ai) {
         const imageModels =
-          category === "manga" || category === "cover"
+          category === "cover" || isReferenceGuide
             ? ["gemini-3-pro-image", "gemini-3.1-flash-image"]
-            : ["gemini-3.1-flash-image", "gemini-3-pro-image"];
+            : ["gemini-3.1-flash-image"];
         for (const imageModel of imageModels) {
           try {
             console.log(`[KAIST Visual Studio] Gemini Image ${imageModel} → ${taskId} (${safeAspectRatio}, reference=${Boolean(reference)})`);
