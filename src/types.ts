@@ -506,7 +506,7 @@ export interface ChatSession {
   userId: string;
   projectId?: string;
   title: string;
-  mode: 'brainstorm' | 'write' | 'edit' | 'critique' | 'research';
+  mode: 'brainstorm' | 'write' | 'serial' | 'manga' | 'edit' | 'critique' | 'research';
   messages: ChatMessage[];
   createdAt: string;
   updatedAt: string;
