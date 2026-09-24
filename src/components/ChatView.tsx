@@ -533,7 +533,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       }
     }
 
-    if (!finalPrompt) return; // Tuyệt đối không gửi chuỗi rỗng
+    if (!finalPrompt) return;
 
     // 2. Chặn gửi trùng khi bấm nhanh nhiều lần
     if (isSendingRef.current || isLoading) return;
@@ -543,7 +543,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
     lastSentPromptRef.current = finalPrompt;
     lastSentAttachedDocsRef.current = [...attachedDocs];
 
-    let currentSession = activeSession;
+    // Clone session/message objects để không mutate React state cũ.
+    let currentSession: ChatSession | null = activeSession
+      ? {
+          ...activeSession,
+          messages: (activeSession.messages || []).map((m) => ({ ...m })),
+        }
+      : null;
+
     if (!currentSession) {
       currentSession = await api.createChat({
         title: finalPrompt.slice(0, 30) + "...",
@@ -551,19 +558,52 @@ export const ChatView: React.FC<ChatViewProps> = ({
         projectId: activeProject?.id,
         messages: [],
       });
-      setSessions([currentSession, ...sessions]);
+      currentSession = {
+        ...currentSession,
+        messages: [...(currentSession.messages || [])],
+      };
       setActiveSessionId(currentSession.id);
     }
+
+    const syncSessionToState = (session: ChatSession) => {
+      const snapshot: ChatSession = {
+        ...session,
+        messages: (session.messages || []).map((m) => ({ ...m })),
+      };
+      setSessions((prev) => {
+        const exists = prev.some((s) => s.id === snapshot.id);
+        return exists
+          ? prev.map((s) => (s.id === snapshot.id ? snapshot : s))
+          : [snapshot, ...prev];
+      });
+    };
+
+    const persistSessionSafely = async (session: ChatSession, title?: string) => {
+      try {
+        await api.updateChat(session.id, {
+          messages: session.messages || [],
+          title: title || session.title,
+        });
+      } catch (persistError) {
+        // Không được làm mất tin nhắn/AI response chỉ vì lưu lịch sử tạm thời thất bại.
+        console.warn("[KAIST Chat] Không thể đồng bộ lịch sử chat ngay lúc này:", persistError);
+      }
+    };
 
     const currentAttached = [...attachedDocs];
     let userMsg: ChatMessage;
 
     if (retryMsgId) {
-      const existing = (currentSession.messages || []).find((m) => m.id === retryMsgId);
-      if (existing) {
-        userMsg = existing;
-        userMsg.status = "sending";
-        userMsg.errorMessage = undefined;
+      const existingIndex = (currentSession.messages || []).findIndex((m) => m.id === retryMsgId);
+      if (existingIndex >= 0) {
+        userMsg = {
+          ...currentSession.messages[existingIndex],
+          status: "sending",
+          errorMessage: undefined,
+        };
+        currentSession.messages = (currentSession.messages || []).map((m, idx) =>
+          idx === existingIndex ? userMsg : m
+        );
       } else {
         userMsg = {
           id: "msg_u_" + Date.now(),
@@ -591,11 +631,17 @@ export const ChatView: React.FC<ChatViewProps> = ({
       currentSession.messages = [...(currentSession.messages || []), userMsg];
     }
 
-    setSessions([...sessions]);
-    // Giữ an toàn: chỉ xóa ô nhập sau khi đã lưu trữ nội dung vào userMsg & lastSentPromptRef
+    // Hiển thị tin nhắn ngay và lưu nó lên server TRƯỚC khi gọi AI.
+    // Như vậy Gemini chậm/lỗi/503 cũng không thể làm "mất" tin người dùng.
+    syncSessionToState(currentSession);
     setInputMessage("");
     setInterimVoiceText("");
     setIsLoading(true);
+
+    await persistSessionSafely(
+      currentSession,
+      (currentSession.messages || []).length <= 1 ? finalPrompt.slice(0, 30) : currentSession.title
+    );
 
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -624,11 +670,18 @@ export const ChatView: React.FC<ChatViewProps> = ({
         controller.signal
       );
 
-      // Nếu API trả thông báo lỗi hoặc rỗng
       if (response.isNotice || !response.text || isErrorMessageContent(response.text)) {
-        userMsg.status = "failed";
-        userMsg.errorMessage = response.text || "Dịch vụ AI không thể hoàn tất câu trả lời.";
-        setSessions([...sessions]);
+        userMsg = {
+          ...userMsg,
+          status: "failed",
+          errorMessage: response.text || "Dịch vụ AI không thể hoàn tất câu trả lời.",
+        };
+        currentSession.messages = (currentSession.messages || []).map((m) =>
+          m.id === userMsg.id ? userMsg : m
+        );
+        syncSessionToState(currentSession);
+        await persistSessionSafely(currentSession);
+
         setErrorInfo({
           message: userMsg.errorMessage,
           errorCode: (response as any).errorCode,
@@ -637,8 +690,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
         return;
       }
 
-      // Xác nhận thành công từ máy chủ
-      userMsg.status = "sent";
+      userMsg = { ...userMsg, status: "sent", errorMessage: undefined };
+      currentSession.messages = (currentSession.messages || []).map((m) =>
+        m.id === userMsg.id ? userMsg : m
+      );
+
       const assistantMsg: ChatMessage = {
         id: "msg_ai_" + Date.now(),
         role: "assistant",
@@ -650,11 +706,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
       };
 
       currentSession.messages = [...(currentSession.messages || []), assistantMsg];
-      await api.updateChat(currentSession.id, {
-        messages: currentSession.messages,
-        title: currentSession.messages.length <= 3 ? finalPrompt.slice(0, 30) : currentSession.title,
-      });
-      setSessions([...sessions]);
+
+      // Render AI response trước; persistence là best-effort và không được làm mất UI.
+      syncSessionToState(currentSession);
+      await persistSessionSafely(
+        currentSession,
+        currentSession.messages.length <= 3 ? finalPrompt.slice(0, 30) : currentSession.title
+      );
 
       if (soundEnabled && typeof window !== "undefined") {
         try {
@@ -677,21 +735,39 @@ export const ChatView: React.FC<ChatViewProps> = ({
       }
     } catch (err: any) {
       if (err.name === "AbortError" || err.message?.includes("aborted")) {
+        userMsg = {
+          ...userMsg,
+          status: "failed",
+          errorMessage: "Đã dừng tạo phản hồi. Tin nhắn của bạn vẫn được lưu.",
+        };
+        currentSession.messages = (currentSession.messages || []).map((m) =>
+          m.id === userMsg.id ? userMsg : m
+        );
+        syncSessionToState(currentSession);
+        await persistSessionSafely(currentSession);
         console.log("[KAIST Chat] Đã dừng tạo phản hồi theo yêu cầu của người dùng.");
       } else {
         console.error("Chat Error:", err);
-        userMsg.status = "failed";
         const isNetworkError =
           err.message?.includes("Failed to fetch") ||
           err.message?.includes("NetworkError") ||
           err.message?.includes("mã HTTP") ||
           !navigator.onLine;
 
-        userMsg.errorMessage = isNetworkError
-          ? "Máy chủ chưa nhận được tin nhắn (Lỗi mạng hoặc kết nối máy chủ gián đoạn). Nội dung được giữ nguyên để bạn gửi lại."
-          : err.message || "Không thể nhận phản hồi từ AI.";
+        userMsg = {
+          ...userMsg,
+          status: "failed",
+          errorMessage: isNetworkError
+            ? "Máy chủ chưa nhận được phản hồi AI (lỗi mạng/kết nối). Tin nhắn của bạn vẫn được lưu để thử lại."
+            : err.message || "Không thể nhận phản hồi từ AI. Tin nhắn của bạn vẫn được lưu.",
+        };
 
-        setSessions([...sessions]);
+        currentSession.messages = (currentSession.messages || []).map((m) =>
+          m.id === userMsg.id ? userMsg : m
+        );
+        syncSessionToState(currentSession);
+        await persistSessionSafely(currentSession);
+
         setErrorInfo({
           message: userMsg.errorMessage,
           errorCode: err.errorCode || (isNetworkError ? "NETWORK_ERROR" : "SERVICE_ERROR"),
