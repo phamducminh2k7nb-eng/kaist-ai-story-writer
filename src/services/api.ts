@@ -6,8 +6,6 @@ import {
   WorldRule,
   OutlineEvent,
   ProjectMemoryItem,
-  BrandProfile,
-  MarketingContentItem,
   DocumentItem,
   GeneratedImageItem,
   FoundImageItem,
@@ -425,63 +423,6 @@ export const api = {
     });
   },
 
-  // Marketing
-  async getMarketingBrands(): Promise<BrandProfile[]> {
-    const res = await fetch("/api/marketing/brands", { headers: getHeaders() });
-    const data = await res.json();
-    return data.brands || [];
-  },
-
-  async createBrand(brand: Partial<BrandProfile>): Promise<BrandProfile> {
-    const res = await fetch("/api/marketing/brands", {
-      method: "POST",
-      headers: getHeaders(),
-      body: JSON.stringify(brand),
-    });
-    const data = await res.json();
-    return data.brand;
-  },
-
-  async deleteMarketingBrand(id: string): Promise<void> {
-    await fetch(`/api/marketing/brands/${id}`, {
-      method: "DELETE",
-      headers: getHeaders(),
-    });
-  },
-
-  async getMarketingContent(): Promise<MarketingContentItem[]> {
-    const res = await fetch("/api/marketing/content", { headers: getHeaders() });
-    const data = await res.json();
-    return data.content || [];
-  },
-
-  async createMarketingContent(item: Partial<MarketingContentItem>): Promise<MarketingContentItem> {
-    const res = await fetch("/api/marketing/content", {
-      method: "POST",
-      headers: getHeaders(),
-      body: JSON.stringify(item),
-    });
-    const data = await res.json();
-    return data.content;
-  },
-
-  async updateMarketingContent(id: string, item: Partial<MarketingContentItem>): Promise<MarketingContentItem> {
-    const res = await fetch(`/api/marketing/content/${id}`, {
-      method: "PUT",
-      headers: getHeaders(),
-      body: JSON.stringify(item),
-    });
-    const data = await res.json();
-    return data.content;
-  },
-
-  async deleteMarketingContent(id: string): Promise<void> {
-    await fetch(`/api/marketing/content/${id}`, {
-      method: "DELETE",
-      headers: getHeaders(),
-    });
-  },
-
   // Documents
   async getDocuments(): Promise<DocumentItem[]> {
     const res = await fetch("/api/documents", { headers: getHeaders() });
@@ -727,27 +668,6 @@ export const api = {
       query: payload.domain ? `${payload.query} (Lĩnh vực: ${payload.domain})` : payload.query,
       projectId: payload.projectId,
     });
-  },
-
-  async generateMarketing(payload: {
-    brandId?: string;
-    productInfo?: string;
-    format: string;
-    platform: string;
-    goal: string;
-    targetAudience: string;
-    extraPrompt?: string;
-  }): Promise<any> {
-    const res = await fetch("/api/ai/marketing-generate", {
-      method: "POST",
-      headers: getHeaders(),
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.error || "Lỗi tạo bài viết marketing");
-    }
-    return data.content;
   },
 
   async refineImagePrompt(payload: {
