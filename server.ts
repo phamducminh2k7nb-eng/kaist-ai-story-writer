@@ -67,8 +67,6 @@ interface DatabaseState {
   worldRules: Record<string, any[]>;
   outlines: Record<string, any[]>;
   memories: Record<string, any[]>;
-  marketingBrands: Record<string, any[]>;
-  marketingContent: Record<string, any[]>;
   documents: Record<string, any[]>;
   images: Record<string, any[]>;
   calendarEvents: Record<string, any[]>;
@@ -355,72 +353,6 @@ Vân Diệp ngẩng đầu. Đôi mắt nàng sáng như sao băng trong đêm t
         status: "locked",
         createdDate: new Date().toISOString(),
         lastUpdated: new Date().toISOString(),
-      }
-    ]
-  },
-  marketingBrands: {
-    "usr_default": [
-      {
-        id: "brand_1",
-        userId: "usr_default",
-        brandName: "Trà Sen Tây Hồ Di Sản",
-        industry: "Thực phẩm cao cấp & Quà tặng Văn hóa",
-        brandPromise: "Đem hương vị truyền thống ngàn năm của sen Bách Diệp vào từng ấm trà thượng hạng.",
-        targetAudience: "Doanh nhân, người yêu thưởng trà, kiều bào và quà biếu ngoại giao (30-60 tuổi)",
-        toneOfVoice: "Trang trọng, thanh tao, ấm áp, đậm chất văn hóa Tràng An",
-        preferredKeywords: ["Tinh hoa", "Thanh khiết", "Gìn giữ di sản", "Bách Diệp Tây Hồ", "Nghệ nhân"],
-        forbiddenWords: ["Rẻ nhất", "Đại hạ giá", "Xả hàng", "Cam kết chữa bệnh"],
-        approvedSamples: [
-          "Mỗi đóa sen ủ hương trà là một khúc ca thầm lặng của đất trời Thủ đô lúc tờ mờ sương."
-        ],
-        products: [
-          {
-            id: "prod_1",
-            name: "Trà Bông Sen Bách Diệp Thượng Hạng",
-            description: "Trà Tân Cương ủ trong đóa sen tươi Tây Hồ vừa hé nụ lúc 4 giờ sáng, cấp đông sâu giữ trọn hương.",
-            benefits: ["Hương sen tự nhiên 100%", "Giúp thư thái tinh thần", "Món quà tinh tế tôn vinh người nhận"],
-            price: "650.000 VNĐ / Hộp 5 bông",
-            proofPoints: "Đạt chuẩn OCOP 4 sao và chứng nhận vùng trồng hồ Quảng Bá."
-          }
-        ]
-      }
-    ]
-  },
-  marketingContent: {
-    "usr_default": [
-      {
-        id: "mkt_1",
-        userId: "usr_default",
-        brandId: "brand_1",
-        title: "Chiến dịch Tết: Một Tách Trà - Vạn Thâm Tình",
-        format: "social_post",
-        platform: "facebook",
-        targetAudience: "Người tìm quà biếu Tết cao cấp",
-        goal: "Xây dựng nhận diện thương hiệu & kích thích đặt trước quà Tết",
-        hook: "Có những món quà tặng xong người ta quên ngay, nhưng có thứ hương thơm chỉ cần chạm môi là nhớ cả một đời...",
-        body: `Người xưa trọng nhau ở cái tâm, người nay quý nhau ở cái tình chân thật.
-
-Giữa vô vàn hộp quà xa xỉ ngoại nhập, một tách Trà Sen Tây Hồ Bách Diệp vẫn giữ được vị thế tôn quý riêng biệt. Từng đóa sen được các nghệ nhân hái từ lúc sương sớm vừa tan trên mặt hồ, nâng niu bọc lấy từng búp trà móc câu Thái Nguyên thượng phẩm.
-
-Khi cánh hoa hé nở trong làn nước sôi thanh khiết, cả gian phòng như lắng đọng lại giữa mùi hương thảo mộc ngan ngát. Ấy không chỉ là thưởng trà, mà là cùng tri kỷ ôn lại những chặng đường đã qua.`,
-        callToAction: "Nhắn tin cho chúng tôi ngay hôm nay để nhận danh mục quà tặng khắc tên thủ công độc bản.",
-        variations: [
-          {
-            angle: "Góc nhìn văn hóa hoài niệm",
-            hook: "Hà Nội mùa này sương sớm, người sành điệu nhớ nhất điều gì?",
-            body: "Không phải sự hối hả nơi phố thị, mà là khoảnh khắc quây quần bên ấm trà sen đượm hương truyền thống..."
-          },
-          {
-            angle: "Góc nhìn quà biếu đẳng cấp",
-            hook: "3 tiêu chuẩn chọn quà biếu cấp trên & đối tác khiến họ phải nể trọng",
-            body: "1. Không phô trương nhưng hiếm có. 2. Đậm đà câu chuyện văn hóa. 3. Vị ngon thanh khiết khó quên..."
-          }
-        ],
-        hashtags: ["#TraSenTayHo", "#QuaBieuTet2026", "#TinhHoaTrangAn", "#ThuongTra"],
-        status: "ready",
-        scheduledDate: "2026-09-20",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
       }
     ]
   },
@@ -1151,8 +1083,6 @@ app.post("/api/auth/register", (req, res) => {
       };
       db.users[newUid] = user;
       db.projects[newUid] = [];
-      db.marketingBrands[newUid] = [];
-      db.marketingContent[newUid] = [];
       db.documents[newUid] = [];
       db.images[newUid] = [];
       db.calendarEvents[newUid] = [];
@@ -1609,8 +1539,6 @@ app.post("/api/auth/google", async (req, res) => {
       };
       db.users[newUid] = user;
       db.projects[newUid] = [];
-      db.marketingBrands[newUid] = [];
-      db.marketingContent[newUid] = [];
       db.documents[newUid] = [];
       db.images[newUid] = [];
       db.calendarEvents[newUid] = [];
@@ -1681,8 +1609,6 @@ app.post("/api/auth/export-all-data", (req, res) => {
     exportDate: new Date().toISOString(),
     user: db.users[uid],
     projects: db.projects[uid] || [],
-    marketingBrands: db.marketingBrands[uid] || [],
-    marketingContent: db.marketingContent[uid] || [],
     documents: db.documents[uid] || [],
     calendar: db.calendarEvents[uid] || [],
   };
