@@ -269,7 +269,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div>
               <div className="font-bold text-stone-800">Xuất toàn bộ dữ liệu (JSON Backup)</div>
               <div className="text-[11px] text-stone-500">
-                Tải về toàn bộ truyện, chương, hồ sơ nhân vật, trí nhớ và bài marketing.
+                Tải về toàn bộ truyện, chương, hồ sơ nhân vật, thế giới, trí nhớ và dữ liệu tự động hóa.
               </div>
             </div>
             <button
